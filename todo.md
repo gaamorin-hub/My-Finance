@@ -10,15 +10,15 @@
 - [x] Criar tabelas: users, accounts, transactions, categories, budgets, savings_goals
 - [x] Definir tipos TypeScript
 - [x] Executar migrações SQL
-- [ ] Definir foreign keys e relações Drizzle em drizzle/relations.ts
+- [x] Definir foreign keys e relacoes Drizzle em drizzle/relations.ts
 
 ## Dashboard Principal
 - [x] Criar layout com sidebar de navegação
 - [x] Implementar cards de resumo (saldo total, receitas, despesas)
 - [x] Adicionar grafico de pizza de gastos por categoria
 - [x] Registrar rotas e criar paginas para todas as secoes
-- [ ] Adicionar grafico de barras de evolucao mensal
-- [ ] Implementar filtro de período (mês, trimestre, ano)
+- [x] Adicionar grafico de barras de evolucao mensal
+- [x] Implementar filtro de periodo (mes, trimestre, ano)
 
 ## Registro de Transacoes
 - [x] Criar pagina de transacoes com listagem
@@ -32,25 +32,25 @@
 - [x] Criar pagina de orcamentos por categoria
 - [x] Implementar barras de progresso visual
 - [x] Adicionar alertas de limite excedido
-- [ ] Permitir edição de limites de orçamento
+- [x] Permitir edicao de limites de orcamento
 
 ## Metas de Economia
 - [x] Criar pagina de metas com visualizacao de progresso
 - [x] Implementar termometro/barra de progresso visual
-- [ ] Permitir criar, editar e deletar metas
+- [x] Permitir criar, editar e deletar metas
 - [x] Calcular progresso automaticamente
 
 ## Múltiplas Contas
 - [x] Criar seletor de contas na sidebar
 - [x] Implementar visualizacao de saldo por conta
 - [x] Adicionar consolidacao de saldo total
-- [ ] Permitir criar novas contas
+- [x] Permitir criar novas contas
 
 ## Histórico de Transações
 - [x] Criar pagina de historico com tabela completa
 - [x] Implementar filtros (periodo, categoria, tipo)
 - [x] Adicionar busca rapida por descricao�o
-- [ ] Permitir editar/deletar transações
+- [x] Permitir editar/deletar transacoesções
 
 ## Acessibilidade
 - [x] Testar navegacao por teclado
@@ -61,9 +61,9 @@
 
 ## Testes
 - [x] Escrever testes unitarios para procedures tRPC
-- [ ] Testar fluxos de criar/editar/deletar transacoes
-- [ ] Testar calculos de orcamento e metas
-- [ ] Testar filtros e buscas
+- [x] Testar fluxos de criar/editar/deletar transacoes
+- [x] Testar calculos de orcamento e metas
+- [x] Testar filtros e buscas
 
 ## Deploy & Entrega
 - [x] Revisar interface final
