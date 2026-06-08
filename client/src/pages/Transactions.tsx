@@ -1,6 +1,7 @@
 import { FinanceDashboardLayout } from "@/components/FinanceDashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { TransactionForm } from "@/components/TransactionForm";
 import { trpc } from "@/lib/trpc";
 import { Plus } from "lucide-react";
 import { useState } from "react";
@@ -8,8 +9,6 @@ import { useState } from "react";
 export default function Transactions() {
   const [showForm, setShowForm] = useState(false);
   const transactionsQuery = trpc.transactions.list.useQuery({});
-  const accountsQuery = trpc.accounts.list.useQuery();
-  const categoriesQuery = trpc.categories.list.useQuery({ type: undefined });
 
   return (
     <FinanceDashboardLayout>
@@ -23,10 +22,13 @@ export default function Transactions() {
         </div>
 
         {showForm && (
-          <Card className="p-6">
-            <h2 className="text-2xl font-bold mb-4">Registrar Transação</h2>
-            <p className="text-muted-foreground">Formulário de transação em desenvolvimento</p>
-          </Card>
+          <TransactionForm
+            onSuccess={() => {
+              setShowForm(false);
+              transactionsQuery.refetch();
+            }}
+            onCancel={() => setShowForm(false)}
+          />
         )}
 
         <Card className="p-6">
