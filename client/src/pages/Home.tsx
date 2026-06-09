@@ -1,151 +1,160 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { FinanceDashboardLayout } from "@/components/FinanceDashboardLayout";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { ArrowDownRight, ArrowUpLeft, TrendingUp, Wallet } from "lucide-react";
-import { useLocation } from "wouter";
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
+import { ArrowDownRight, ArrowUpRight, Eye, EyeOff, TrendingUp } from "lucide-react";
+import { useState } from "react";
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
 export default function Home() {
-  const { user, isAuthenticated, loading } = useAuth();
-  const [, navigate] = useLocation();
+  const [showBalance, setShowBalance] = useState(true);
+  const accountsQuery = trpc.accounts.list.useQuery({} as any);
+  const transactionsQuery = trpc.transactions.list.useQuery({} as any);
+  const budgetsQuery = trpc.budgets.list.useQuery({} as any);
 
-  // Fetch data
-  const accountsQuery = trpc.accounts.list.useQuery(undefined, { enabled: isAuthenticated });
-  const transactionsQuery = trpc.transactions.list.useQuery({}, { enabled: isAuthenticated });
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-lg text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10 p-4">
-        <div className="text-center max-w-2xl">
-          <div className="mb-8">
-            <h1 className="text-5xl md:text-6xl font-bold text-primary mb-4">💰 Finanças Acessíveis</h1>
-            <p className="text-xl md:text-2xl text-foreground mb-2">Controle financeiro elegante e acessível</p>
-            <p className="text-lg text-muted-foreground">Para todas as idades, com interface clara e intuitiva</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            <Card className="p-6 text-left">
-              <TrendingUp className="w-8 h-8 text-success mb-3" />
-              <h3 className="text-xl font-bold mb-2">Dashboard Inteligente</h3>
-              <p className="text-muted-foreground">Visualize seu saldo, receitas e despesas em tempo real com gráficos interativos</p>
-            </Card>
-
-            <Card className="p-6 text-left">
-              <Wallet className="w-8 h-8 text-primary mb-3" />
-              <h3 className="text-xl font-bold mb-2">Múltiplas Contas</h3>
-              <p className="text-muted-foreground">Gerencie carteira, conta corrente, poupança e outros com saldo consolidado</p>
-            </Card>
-
-            <Card className="p-6 text-left">
-              <ArrowDownRight className="w-8 h-8 text-destructive mb-3" />
-              <h3 className="text-xl font-bold mb-2">Registro Simples</h3>
-              <p className="text-muted-foreground">Adicione receitas e despesas com categorias coloridas e ícones visuais</p>
-            </Card>
-
-            <Card className="p-6 text-left">
-              <ArrowUpLeft className="w-8 h-8 text-success mb-3" />
-              <h3 className="text-xl font-bold mb-2">Orçamento & Metas</h3>
-              <p className="text-muted-foreground">Controle limites de gastos e acompanhe suas metas de economia</p>
-            </Card>
-          </div>
-
-          <Button
-            onClick={() => navigate(getLoginUrl())}
-            size="lg"
-            className="text-lg px-8 py-6 h-auto"
-          >
-            Começar Agora
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Calculate totals
+  const accounts = accountsQuery.data || [];
   const transactions = transactionsQuery.data || [];
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  
-  const monthlyTransactions = transactions.filter(t => 
-    t.date.toISOString().slice(0, 7) === currentMonth
-  );
+  const budgets = budgetsQuery.data || [];
 
-  const totalIncome = monthlyTransactions
-    .filter(t => t.type === "income")
+  const totalBalance = accounts.reduce((sum, acc) => sum + parseFloat(acc.balance), 0);
+  const totalIncome = transactions
+    .filter((t) => t.type === "income")
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  const totalExpense = transactions
+    .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
-  const totalExpense = monthlyTransactions
-    .filter(t => t.type === "expense")
-    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+  // Dados para gráfico de pizza
+  const expensesByCategory = transactions
+    .filter((t) => t.type === "expense")
+    .reduce(
+      (acc, t) => {
+        const existing = acc.find((item) => item.name === `Categoria ${t.categoryId}`);
+        if (existing) {
+          existing.value += parseFloat(t.amount);
+        } else {
+          acc.push({ name: `Categoria ${t.categoryId}`, value: parseFloat(t.amount) });
+        }
+        return acc;
+      },
+      [] as Array<{ name: string; value: number }>
+    );
 
-  const totalBalance = (accountsQuery.data || []).reduce((sum, a) => sum + parseFloat(a.balance), 0);
+  const COLORS = ["#06d6a0", "#1d3557", "#2d5a7b", "#f4a261", "#e76f51", "#457b9d"];
 
-  // Prepare chart data
-  const expensesByCategory = monthlyTransactions
-    .filter(t => t.type === "expense")
-    .reduce((acc: Record<string, number>, t) => {
-      acc[t.categoryId] = (acc[t.categoryId] || 0) + parseFloat(t.amount);
-      return acc;
-    }, {});
-
-  const pieData = Object.entries(expensesByCategory).map(([categoryId, amount]) => ({
-    name: `Categoria ${categoryId}`,
-    value: amount,
-  }));
-
-  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
+  // Dados para gráfico de barras
+  const monthlyData = Array.from({ length: 6 }, (_, i) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - (5 - i));
+    const monthStr = date.toISOString().slice(0, 7);
+    const monthTransactions = transactions.filter((t) => t.date.toISOString().slice(0, 7) === monthStr);
+    const income = monthTransactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    const expense = monthTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    return {
+      month: date.toLocaleDateString("pt-BR", { month: "short" }),
+      income,
+      expense,
+    };
+  });
 
   return (
     <FinanceDashboardLayout>
-      <div className="space-y-8">
+      <div className="space-y-8 animate-fade-in">
         {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Bem-vindo, {user?.name}!</h1>
-          <p className="text-lg text-muted-foreground">Aqui está um resumo de suas finanças</p>
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold text-white">Bem-vindo!</h1>
+          <p className="text-gray-400">Aqui está seu resumo financeiro</p>
         </div>
 
-        {/* Summary Cards */}
+        {/* Main Balance Card */}
+        <div className="card gradient-primary p-8 rounded-3xl shadow-2xl hover-lift">
+          <div className="flex items-start justify-between mb-8">
+            <div>
+              <p className="text-white/80 text-sm font-medium mb-2">Saldo Total</p>
+              <div className="flex items-center gap-3">
+                <h2 className="text-5xl font-bold text-white">
+                  {showBalance ? `R$ ${totalBalance.toFixed(2)}` : "••••••"}
+                </h2>
+                <button
+                  onClick={() => setShowBalance(!showBalance)}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  {showBalance ? (
+                    <Eye className="w-6 h-6 text-white" />
+                  ) : (
+                    <EyeOff className="w-6 h-6 text-white" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <TrendingUp className="w-12 h-12 text-white/30" />
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <p className="text-white/60 text-xs font-medium mb-1">RECEITAS</p>
+              <p className="text-2xl font-bold text-white">R$ {totalIncome.toFixed(2)}</p>
+            </div>
+            <div className="flex-1">
+              <p className="text-white/60 text-xs font-medium mb-1">DESPESAS</p>
+              <p className="text-2xl font-bold text-white">R$ {totalExpense.toFixed(2)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="card-premium">
-            <div className="flex items-center justify-between">
+          {/* Contas */}
+          <Card className="bg-black/40 border-white/10 p-6 rounded-2xl hover-lift">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-muted-foreground text-lg mb-2">Saldo Total</p>
-                <p className="text-4xl font-bold text-primary">R$ {totalBalance.toFixed(2)}</p>
+                <p className="text-gray-400 text-sm font-medium">Contas Ativas</p>
+                <p className="text-3xl font-bold text-white mt-2">{accounts.length}</p>
               </div>
-              <Wallet className="w-12 h-12 text-primary/20" />
+              <div className="p-3 bg-[#06d6a0]/20 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-[#06d6a0]" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <span className="w-2 h-2 bg-[#06d6a0] rounded-full"></span>
+              Todas ativas
             </div>
           </Card>
 
-          <Card className="card-premium">
-            <div className="flex items-center justify-between">
+          {/* Transações */}
+          <Card className="bg-black/40 border-white/10 p-6 rounded-2xl hover-lift">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-muted-foreground text-lg mb-2">Receitas (Mês)</p>
-                <p className="text-4xl font-bold text-success">R$ {totalIncome.toFixed(2)}</p>
+                <p className="text-gray-400 text-sm font-medium">Transações</p>
+                <p className="text-3xl font-bold text-white mt-2">{transactions.length}</p>
               </div>
-              <ArrowUpLeft className="w-12 h-12 text-success/20" />
+              <div className="p-3 bg-[#1d3557]/20 rounded-lg">
+                <ArrowUpRight className="w-6 h-6 text-[#1d3557]" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <span className="w-2 h-2 bg-[#1d3557] rounded-full"></span>
+              Este mês
             </div>
           </Card>
 
-          <Card className="card-premium">
-            <div className="flex items-center justify-between">
+          {/* Orçamentos */}
+          <Card className="bg-black/40 border-white/10 p-6 rounded-2xl hover-lift">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-muted-foreground text-lg mb-2">Despesas (Mês)</p>
-                <p className="text-4xl font-bold text-destructive">R$ {totalExpense.toFixed(2)}</p>
+                <p className="text-gray-400 text-sm font-medium">Orçamentos</p>
+                <p className="text-3xl font-bold text-white mt-2">{budgets.length}</p>
               </div>
-              <ArrowDownRight className="w-12 h-12 text-destructive/20" />
+              <div className="p-3 bg-[#f4a261]/20 rounded-lg">
+                <ArrowDownRight className="w-6 h-6 text-[#f4a261]" />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <span className="w-2 h-2 bg-[#f4a261] rounded-full"></span>
+              Ativos
             </div>
           </Card>
         </div>
@@ -153,56 +162,92 @@ export default function Home() {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Pie Chart */}
-          <Card className="card-premium">
-            <h2 className="text-2xl font-bold mb-6">Gastos por Categoria</h2>
-            {pieData.length > 0 ? (
+          <Card className="bg-black/40 border-white/10 p-6 rounded-2xl">
+            <h3 className="text-xl font-bold text-white mb-6">Gastos por Categoria</h3>
+            {expensesByCategory.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={pieData}
+                    data={expensesByCategory}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    label={({ name, value }) => `${name}: R$ ${value.toFixed(2)}`}
+                    label={({ name, value }: any) => `${name}: R$ ${value.toFixed(0)}`}
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {pieData.map((entry, index) => (
+                    {expensesByCategory.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `R$ ${typeof value === 'number' ? value.toFixed(2) : value}`} />
+                  <Tooltip formatter={(value: any) => `R$ ${Number(value).toFixed(2)}`} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-muted-foreground py-12">Nenhuma despesa registrada este mês</p>
+              <div className="h-80 flex items-center justify-center text-gray-400">
+                Nenhuma despesa registrada
+              </div>
             )}
           </Card>
 
-          {/* Recent Transactions */}
-          <Card className="card-premium">
-            <h2 className="text-2xl font-bold mb-6">Transações Recentes</h2>
-            <div className="space-y-4">
-              {transactions.slice(0, 5).map((transaction) => (
-                <div key={transaction.id} className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                  <div className="flex-1">
-                    <p className="font-semibold text-foreground">{transaction.description}</p>
-                    <p className="text-sm text-muted-foreground">
+          {/* Bar Chart */}
+          <Card className="bg-black/40 border-white/10 p-6 rounded-2xl">
+            <h3 className="text-xl font-bold text-white mb-6">Evolução Mensal</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={monthlyData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <XAxis dataKey="month" stroke="rgba(255,255,255,0.5)" />
+                <YAxis stroke="rgba(255,255,255,0.5)" />
+                <Tooltip
+                  contentStyle={{ backgroundColor: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)" }}
+                  formatter={(value: any) => `R$ ${Number(value).toFixed(2)}`}
+                />
+                <Bar dataKey="income" fill="#06d6a0" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="expense" fill="#e76f51" radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+
+        {/* Recent Transactions */}
+        <Card className="bg-black/40 border-white/10 p-6 rounded-2xl">
+          <h3 className="text-xl font-bold text-white mb-6">Transações Recentes</h3>
+          <div className="space-y-3">
+            {transactions.slice(0, 5).map((transaction) => (
+              <div key={transaction.id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`p-2 rounded-lg ${
+                      transaction.type === "income"
+                        ? "bg-[#06d6a0]/20"
+                        : "bg-[#e76f51]/20"
+                    }`}
+                  >
+                    {transaction.type === "income" ? (
+                      <ArrowDownRight className={`w-5 h-5 text-[#06d6a0]`} />
+                    ) : (
+                      <ArrowUpRight className={`w-5 h-5 text-[#e76f51]`} />
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-white">{transaction.description}</p>
+                    <p className="text-sm text-gray-400">
                       {new Date(transaction.date).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  <p className={`text-lg font-bold ${transaction.type === "income" ? "text-success" : "text-destructive"}`}>
-                    {transaction.type === "income" ? "+" : "-"} R$ {parseFloat(transaction.amount).toFixed(2)}
-                  </p>
                 </div>
-              ))}
-              {transactions.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">Nenhuma transação registrada</p>
-              )}
-            </div>
-          </Card>
-        </div>
+                <p
+                  className={`text-lg font-bold ${
+                    transaction.type === "income" ? "text-[#06d6a0]" : "text-[#e76f51]"
+                  }`}
+                >
+                  {transaction.type === "income" ? "+" : "-"} R$ {parseFloat(transaction.amount).toFixed(2)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
     </FinanceDashboardLayout>
   );
